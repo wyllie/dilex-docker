@@ -1,0 +1,26 @@
+# Use the official Ubuntu base image
+FROM ubuntu:latest
+
+# Set environment variables to avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update apt cache and install packages:
+# - bash, curl, git, python3, python3-venv, python3-pip
+# - nodejs, npm, golang, hugo, wget
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        bash curl git python3 python3-venv python3-pip nodejs npm golang-go hugo wget && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set up a Python virtual environment and install the AWS CLI via pip
+RUN python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --upgrade pip awscli
+
+# Add the virtual environment and Go bin to the PATH
+ENV PATH="/usr/local/go/bin:/opt/venv/bin:/usr/local/bin:$PATH"
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Set the default command to run bash
+CMD ["/bin/bash"]
