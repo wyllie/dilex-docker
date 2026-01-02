@@ -1,20 +1,24 @@
-# Use the official Alpine base image
-FROM alpine:latest
+# Use a pinned Alpine (recommended vs :latest)
+FROM alpine:3.20
 
-# Install necessary packages: bash, Hugo, AWS CLI, Node.js, npm, git, etc.
+# Add edge repos for hugo (community) and dart-sass (testing)
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories && \
+    echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
+    echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+
+# Install tooling (hugo from edge/community; dart-sass from edge/testing)
 RUN apk update && \
-    apk add --no-cache bash curl git python3 py3-pip nodejs npm go hugo wget
+    apk add --no-cache \
+      bash curl git python3 py3-pip go \
+      hugo dart-sass wget
 
-# Install the AWS CLI - this can't be installed with apk and needs it's own venv
+# Install the AWS CLI in its own venv
 RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip
-RUN /opt/venv/bin/pip install awscli --upgrade
+    /opt/venv/bin/pip install --upgrade pip && \
+    /opt/venv/bin/pip install --upgrade awscli
 
-# Add a few directories to the path 
+# Add a few directories to the path
 ENV PATH="/usr/local/go/bin:/opt/venv/bin:/usr/local/bin:$PATH"
 
-# Set the working directory inside the container
 WORKDIR /app
-
-# Set the default command to run bash
 CMD ["/bin/bash"]
