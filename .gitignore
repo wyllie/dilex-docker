@@ -1,0 +1,6 @@
+# editor crap
+*.swp
+.idea/
+
+# MacOS crap
+.DS_Store

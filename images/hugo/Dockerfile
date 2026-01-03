@@ -7,15 +7,14 @@ RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositor
     echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
 
 # Install tooling (hugo from edge/community; dart-sass from edge/testing)
-RUN apk update && \
-    apk add --no-cache \
-      bash curl git python3 py3-pip go \
-      hugo dart-sass wget
+RUN apk add --no-cache \
+      bash ca-certificates curl dart-sass git python3 py3-pip go \
+      hugo tar wget
 
 # Install the AWS CLI in its own venv
 RUN python3 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install --upgrade awscli
+    /opt/venv/bin/pip install --no-cache-dir --upgrade awscli
 
 # Add a few directories to the path
 ENV PATH="/usr/local/go/bin:/opt/venv/bin:/usr/local/bin:$PATH"
