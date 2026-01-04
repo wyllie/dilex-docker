@@ -70,30 +70,18 @@ jobs:
           - image: hugo
             context: ./images/hugo
             dockerfile: ./images/hugo/Dockerfile
-            tags: |
-              wyllie/hugo:hugo${{ env.HUGO_VERSION }}-sass${{ env.SASS_VERSION }}-alpine${{ env.ALPINE_VERSION }}-${{ env.BASE_REV }}
-              wyllie/hugo:main
 
           - image: hugo-aws
             context: ./images/hugo-aws
             dockerfile: ./images/hugo-aws/Dockerfile
-            tags: |
-              wyllie/hugo-aws:hugo${{ env.HUGO_VERSION }}-sass${{ env.SASS_VERSION }}-awscli2-alpine${{ env.ALPINE_VERSION }}-${{ env.BASE_REV }}
-              wyllie/hugo-aws:main
 
           - image: cdk
             context: ./images/cdk
             dockerfile: ./images/cdk/Dockerfile
-            tags: |
-              wyllie/cdk:awscli2-alpine${{ env.ALPINE_VERSION }}-${{ env.BASE_REV }}
-              wyllie/cdk:main
 
           - image: latex
             context: ./images/latex
             dockerfile: ./images/latex/Dockerfile
-            tags: |
-              wyllie/latex:alpine${{ env.ALPINE_VERSION }}-texlive-${{ env.BASE_REV }}
-              wyllie/latex:main
 
     steps:
       - name: Checkout
@@ -112,6 +100,37 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Compute tags
+        id: tags
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "${{ matrix.image }}" in
+            hugo)
+              TAGS="wyllie/hugo:hugo${HUGO_VERSION}-sass${SASS_VERSION}-alpine${ALPINE_VERSION}-${BASE_REV}\nwyllie/hugo:main"
+              ;;
+            hugo-aws)
+              TAGS="wyllie/hugo-aws:hugo${HUGO_VERSION}-sass${SASS_VERSION}-awscli2-alpine${ALPINE_VERSION}-${BASE_REV}\nwyllie/hugo-aws:main"
+              ;;
+            cdk)
+              TAGS="wyllie/cdk:awscli2-alpine${ALPINE_VERSION}-${BASE_REV}\nwyllie/cdk:main"
+              ;;
+            latex)
+              TAGS="wyllie/latex:alpine${ALPINE_VERSION}-texlive-${BASE_REV}\nwyllie/latex:main"
+              ;;
+            *)
+              echo "Unknown matrix.image: ${{ matrix.image }}" >&2
+              exit 2
+              ;;
+          esac
+
+          {
+            echo 'tags<<EOF'
+            echo -e "$TAGS"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and (optionally) push
         uses: docker/build-push-action@v6
         with:
@@ -119,4 +138,4 @@ jobs:
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ matrix.tags }}
+          tags: ${{ steps.tags.outputs.tags }}
