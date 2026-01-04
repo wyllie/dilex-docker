@@ -1,6 +1,11 @@
-# dilex-docker
+# dilex-containers
 
-This repository contains the **authoritative Docker images and tooling** used across Dilex projects for:
+![GHCR](https://img.shields.io/github/v/release/DilexNetworks/dilex-containers?label=GHCR&logo=github)
+![GHCR Hugo](https://img.shields.io/badge/ghcr-hugo-blue?logo=github)
+![Docker Hub](https://img.shields.io/docker/v/wyllie/hugo?label=docker%20hub&logo=docker)
+
+
+This repository contains the **authoritative container images and tooling** used across Dilex projects for:
 
 - Hugo site builds (docs + websites)
 - Deploying static sites to AWS (S3 / CloudFront)
@@ -34,6 +39,29 @@ and provide an organization-owned namespace tightly integrated with GitHub.
 
 NOTE: Image tags are kept identical across registries. Additional registries (e.g. AWS ECR)
 may be added in the future without breaking existing tags.
+
+### Which registry should I use?
+
+- **Docker Hub (`wyllie/*`)** — recommended for general use, local development, and maximum compatibility.
+- **GHCR (`ghcr.io/dilexnetworks/*`)** — recommended for GitHub-native workflows, CI usage, and organization-owned pulls.
+
+Both registries publish identical images and tags.
+
+### Example pulls
+
+Docker Hub:
+
+```bash
+docker pull wyllie/hugo:main
+```
+
+GHCR:
+
+```bash
+docker pull ghcr.io/dilexnetworks/hugo:main
+```
+
+---
 
 ### `wyllie/ci-base`
 Minimal base image shared by all other images.

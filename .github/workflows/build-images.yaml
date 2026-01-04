@@ -1,18 +1,8 @@
 name: Build and Push Docker Images
 
 on:
-  push:
-    branches: [main]
-    tags:
-      - "v*"
-  pull_request:
-  workflow_dispatch:
-    inputs:
-      build_latex:
-        description: "Build/push the wyllie/latex image"
-        required: false
-        default: false
-        type: boolean
+  release:
+    types: [published]
 
 # Central “tag knobs”
 env:
@@ -50,27 +40,25 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and (optionally) push
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: ./images/ci-base
           file: ./images/ci-base/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: |
             ${{ env.DOCKERHUB_NS }}/ci-base:alpine${{ env.ALPINE_VERSION }}-${{ env.BASE_REV }}
             ${{ env.DOCKERHUB_NS }}/ci-base:main
@@ -108,14 +96,12 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -147,13 +133,13 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Build and (optionally) push
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.tags.outputs.tags }}
 
   build-stage2:
@@ -175,14 +161,12 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -203,20 +187,19 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Build and (optionally) push
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: ./images/hugo-aws
           file: ./images/hugo-aws/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.tags.outputs.tags }}
 
   build-latex:
     name: Build latex (manual)
     runs-on: ubuntu-latest
     needs: build-ci-base
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_latex }}
     permissions:
       contents: read
       packages: write
@@ -238,7 +221,6 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GHCR
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io

@@ -1,6 +1,17 @@
 BIN_DIR := $(HOME)/bin
 WRAPPER_DIR := wrappers
 
+# Versioning / releases
+# - Version is stored in version.txt (semver like 0.1.0)
+# - `make release RELEASE=patch|minor|major` will bump, commit, tag, push, and create a GitHub release (if `gh` is installed)
+VERSION_FILE := version.txt
+RELEASE_PREFIX ?= v
+DEFAULT_VERSION ?= 0.1.0
+
+# Release controls
+# - Set DRY_RUN=1 to preview commands without changing anything
+DRY_RUN ?= 0
+
 # Image tags (single source of truth)
 HUGO_IMAGE := wyllie/hugo:hugo0.154.2-sass1.97.1-alpine3.23.2-1
 HUGO_AWS_IMAGE := wyllie/hugo-aws:hugo0.154.2-sass1.97.1-awscli2-alpine3.23.2-1
@@ -22,7 +33,8 @@ PLATFORMS ?= linux/amd64,linux/arm64
 	build-ci-base build-hugo build-hugo-aws build-cdk build-latex \
 	build-all buildx-ci-base buildx-hugo buildx-hugo-aws buildx-cdk buildx-latex \
 	smoke-hugo smoke-hugo-aws smoke-cdk \
-	pull-published pull-ci-base pull-hugo pull-hugo-aws pull-cdk pull-latex images-info
+	pull-published pull-ci-base pull-hugo pull-hugo-aws pull-cdk pull-latex images-info \
+	version-init version-show version-set bump-version release commit-release tag-release push-release gh-release
 
 check-bin:
 	@mkdir -p $(BIN_DIR)
@@ -131,3 +143,112 @@ pull-latex:
 
 pull-published: pull-ci-base pull-hugo pull-hugo-aws pull-cdk
 	@echo "✔ Pulled published images"
+
+
+# -----------------------------
+# Versioning / Release (manual)
+# -----------------------------
+
+# Ensure we have a version file.
+version-init:
+	@if [ ! -f "$(VERSION_FILE)" ]; then \
+		echo "$(DEFAULT_VERSION)" > "$(VERSION_FILE)"; \
+		echo "✔ Created $(VERSION_FILE) with $(DEFAULT_VERSION)"; \
+	fi
+
+# Print the current version (e.g., 0.1.0)
+version-show: version-init
+	@cat "$(VERSION_FILE)"
+
+# Set version explicitly: `make version-set VERSION=0.2.0`
+version-set:
+	@[ -n "$(VERSION)" ] || { echo "❌ VERSION is required (e.g., make version-set VERSION=0.2.0)"; exit 2; }
+	@echo "$(VERSION)" > "$(VERSION_FILE)"
+	@echo "✔ Set version to $(VERSION)"
+
+# Bump semver in version.txt. Usage: `make bump-version RELEASE=patch|minor|major`
+# - patch: 0.1.0 -> 0.1.1
+# - minor: 0.1.0 -> 0.2.0
+# - major: 0.1.0 -> 1.0.0
+bump-version: version-init
+	@[ -n "$(RELEASE)" ] || { echo "❌ RELEASE is required (patch|minor|major)"; exit 2; }
+	@python3 - <<'PY'
+import os, re, sys
+part = os.environ.get('RELEASE')
+path = os.environ.get('VERSION_FILE', 'version.txt')
+with open(path, 'r', encoding='utf-8') as f:
+    v = f.read().strip()
+if not re.fullmatch(r"\d+\.\d+\.\d+", v):
+    print(f"❌ Invalid version in {path}: {v} (expected semver like 0.1.0)")
+    sys.exit(2)
+major, minor, patch = map(int, v.split('.'))
+if part == 'patch':
+    patch += 1
+elif part == 'minor':
+    minor += 1
+    patch = 0
+elif part == 'major':
+    major += 1
+    minor = 0
+    patch = 0
+else:
+    print("❌ RELEASE must be patch|minor|major")
+    sys.exit(2)
+new_v = f"{major}.{minor}.{patch}"
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(new_v + "\n")
+print(new_v)
+PY
+	@echo "✔ Bumped version to $$(cat "$(VERSION_FILE)")"
+
+# Commit the version bump.
+commit-release: version-init
+	@V=$$(cat "$(VERSION_FILE)" | tr -d ' \t\n\r'); \
+	[ -n "$$V" ] || { echo "❌ $(VERSION_FILE) is empty"; exit 2; }; \
+	if [ "$(DRY_RUN)" = "1" ]; then \
+		echo "DRY_RUN git add $(VERSION_FILE)"; \
+		echo "DRY_RUN git commit -m 'chore(release): $(RELEASE_PREFIX)$$V'"; \
+	else \
+		git add "$(VERSION_FILE)"; \
+		git commit -m "chore(release): $(RELEASE_PREFIX)$$V"; \
+	fi
+
+# Create a lightweight git tag (e.g., v0.1.1)
+tag-release: version-init
+	@V=$$(cat "$(VERSION_FILE)" | tr -d ' \t\n\r'); \
+	TAG="$(RELEASE_PREFIX)$$V"; \
+	if [ "$(DRY_RUN)" = "1" ]; then \
+		echo "DRY_RUN git tag $$TAG"; \
+	else \
+		git tag "$$TAG"; \
+	fi
+	@echo "✔ Tagged $$TAG"
+
+# Push commits + tags.
+push-release:
+	@if [ "$(DRY_RUN)" = "1" ]; then \
+		echo "DRY_RUN git push"; \
+		echo "DRY_RUN git push --tags"; \
+	else \
+		git push; \
+		git push --tags; \
+	fi
+
+# Create a GitHub release if `gh` is installed. Safe no-op otherwise.
+gh-release: version-init
+	@V=$$(cat "$(VERSION_FILE)" | tr -d ' \t\n\r'); \
+	TAG="$(RELEASE_PREFIX)$$V"; \
+	if command -v gh >/dev/null 2>&1; then \
+		if [ "$(DRY_RUN)" = "1" ]; then \
+			echo "DRY_RUN gh release create $$TAG --title '$$TAG' --notes 'Release $$TAG'"; \
+		else \
+			gh release create "$$TAG" --title "$$TAG" --notes "Release $$TAG"; \
+		fi; \
+	else \
+		echo "ℹ️  'gh' not found; skipping GitHub release creation"; \
+	fi
+
+# One-shot release target.
+# Usage: make release RELEASE=patch|minor|major
+release: bump-version commit-release tag-release push-release gh-release
+	@echo "✔ Release complete: $(RELEASE_PREFIX)$$(cat "$(VERSION_FILE)")"
