@@ -172,34 +172,25 @@ version-set:
 # - major: 0.1.0 -> 1.0.0
 bump-version: version-init
 	@[ -n "$(RELEASE)" ] || { echo "❌ RELEASE is required (patch|minor|major)"; exit 2; }
-	@python3 - <<'PY'
-import os, re, sys
-part = os.environ.get('RELEASE')
-path = os.environ.get('VERSION_FILE', 'version.txt')
-with open(path, 'r', encoding='utf-8') as f:
-    v = f.read().strip()
-if not re.fullmatch(r"\d+\.\d+\.\d+", v):
-    print(f"❌ Invalid version in {path}: {v} (expected semver like 0.1.0)")
-    sys.exit(2)
-major, minor, patch = map(int, v.split('.'))
-if part == 'patch':
-    patch += 1
-elif part == 'minor':
-    minor += 1
-    patch = 0
-elif part == 'major':
-    major += 1
-    minor = 0
-    patch = 0
-else:
-    print("❌ RELEASE must be patch|minor|major")
-    sys.exit(2)
-new_v = f"{major}.{minor}.{patch}"
-with open(path, 'w', encoding='utf-8') as f:
-    f.write(new_v + "\n")
-print(new_v)
-PY
-	@echo "✔ Bumped version to $$(cat "$(VERSION_FILE)")"
+	@# Prefer bump2version if configured; fallback to a tiny semver bump (no heredocs; avoids Make tab/space pitfalls).
+	@if command -v bump2version >/dev/null 2>&1 && { [ -f .bumpversion.cfg ] || [ -f setup.cfg ] || [ -f pyproject.toml ]; }; then \
+		if [ "$(DRY_RUN)" = "1" ]; then \
+			echo "DRY_RUN bump2version --no-commit --no-tag $(RELEASE)"; \
+		else \
+			bump2version --no-commit --no-tag "$(RELEASE)"; \
+		fi; \
+	else \
+		if [ "$(DRY_RUN)" = "1" ]; then \
+			echo "DRY_RUN python3 semver bump $(RELEASE) -> $(VERSION_FILE)"; \
+		else \
+			python3 -c 'import os,re,sys; part=os.environ.get("RELEASE"); path=os.environ.get("VERSION_FILE","version.txt"); v=open(path,"r",encoding="utf-8").read().strip();\n\
+assert re.fullmatch(r"\\d+\\.\\d+\\.\\d+", v), f"Invalid version in {path}: {v}";\n\
+major,minor,patch=map(int,v.split("."));\n\
+(major,minor,patch) = (major, minor, patch+1) if part=="patch" else (major, minor+1, 0) if part=="minor" else (major+1,0,0) if part=="major" else (_ for _ in ()).throw(SystemExit("RELEASE must be patch|minor|major"));\n\
+new=f"{major}.{minor}.{patch}"; open(path,"w",encoding="utf-8").write(new+"\\n"); print(new)'; \
+		fi; \
+	fi
+	@echo "✔ Bumped version to $$(cat \"$(VERSION_FILE)\")"
 
 # Commit the version bump.
 commit-release: version-init

@@ -197,7 +197,10 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
 
   build-latex:
-    name: Build latex (manual)
+    name: Build latex (disabled)
+    # Disabled for now: LaTeX image build is still experimental and currently fails.
+    # Re-enable when ready to debug/finish the Dockerfile.
+    if: false
     runs-on: ubuntu-latest
     needs: build-ci-base
     permissions:
