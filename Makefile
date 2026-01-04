@@ -1,10 +1,11 @@
+DEFAULT_GOAL := help
 BIN_DIR := $(HOME)/bin
 WRAPPER_DIR := wrappers
 
 # Versioning / releases
-# - Version is stored in version.txt (semver like 0.1.0)
+# - Version is stored in VERSION (semver like 0.1.0)
 # - `make release RELEASE=patch|minor|major` will bump, commit, tag, push, and create a GitHub release (if `gh` is installed)
-VERSION_FILE := version.txt
+VERSION_FILE := VERSION
 RELEASE_PREFIX ?= v
 DEFAULT_VERSION ?= 0.1.0
 
@@ -34,7 +35,7 @@ PLATFORMS ?= linux/amd64,linux/arm64
 	build-all buildx-ci-base buildx-hugo buildx-hugo-aws buildx-cdk buildx-latex \
 	smoke-hugo smoke-hugo-aws smoke-cdk \
 	pull-published pull-ci-base pull-hugo pull-hugo-aws pull-cdk pull-latex images-info \
-	version-init version-show version-set bump-version release commit-release tag-release push-release gh-release
+	version-init version-show version-set bump-version release commit-release tag-release push-release gh-release help
 
 check-bin:
 	@mkdir -p $(BIN_DIR)
@@ -166,7 +167,7 @@ version-set:
 	@echo "$(VERSION)" > "$(VERSION_FILE)"
 	@echo "✔ Set version to $(VERSION)"
 
-# Bump semver in version.txt. Usage: `make bump-version RELEASE=patch|minor|major`
+# Bump semver in VERSION Usage: `make bump-version RELEASE=patch|minor|major`
 # (Bump semantics are handled by bump2version: patch|minor|major)
 bump-version: version-init
 	@[ -n "$(RELEASE)" ] || { echo "❌ RELEASE is required (patch|minor|major)"; exit 2; }
@@ -232,3 +233,57 @@ gh-release: version-init
 # Usage: make release RELEASE=patch|minor|major
 release: bump-version commit-release tag-release push-release gh-release
 	@echo "✔ Release complete: $(RELEASE_PREFIX)$$(cat "$(VERSION_FILE)")"
+
+
+# -----------------------------
+# Help
+# -----------------------------
+
+.PHONY: help
+help:
+	@echo ""
+	@echo "dilex-containers Makefile"
+	@echo ""
+	@echo "Wrappers:"
+	@echo "  install           Install docker-backed CLI wrappers into ~/bin"
+	@echo "  uninstall         Remove installed wrappers"
+	@echo ""
+	@echo "Local builds (fast, single-arch):"
+	@echo "  build-ci-base     Build ci-base locally"
+	@echo "  build-hugo        Build hugo locally"
+	@echo "  build-hugo-aws    Build hugo-aws locally"
+	@echo "  build-cdk         Build cdk locally"
+	@echo "  build-latex       Build latex locally"
+	@echo "  build-all         Build ci-base, hugo, hugo-aws, cdk"
+	@echo ""
+	@echo "Local multi-arch builds (buildx, closer to CI):"
+	@echo "  buildx-ci-base"
+	@echo "  buildx-hugo"
+	@echo "  buildx-hugo-aws"
+	@echo "  buildx-cdk"
+	@echo "  buildx-latex"
+	@echo ""
+	@echo "Smoke tests:"
+	@echo "  smoke-hugo        Run hugo + sass sanity checks"
+	@echo "  smoke-hugo-aws    Run hugo + aws sanity checks"
+	@echo "  smoke-cdk         Run cdk + aws sanity checks"
+	@echo ""
+	@echo "Published images:"
+	@echo "  images-info       Show pinned published image tags"
+	@echo "  pull-published    Pull all published images"
+	@echo "  pull-hugo"
+	@echo "  pull-hugo-aws"
+	@echo "  pull-cdk"
+	@echo "  pull-latex"
+	@echo ""
+	@echo "Versioning / Release:"
+	@echo "  version-init      Create VERSION if missing"
+	@echo "  version-show      Show current version"
+	@echo "  version-set       Set version explicitly (VERSION=x.y.z)"
+	@echo "  bump-version      Bump version (RELEASE=patch|minor|major)"
+	@echo "  release           Bump, commit, tag, push, and create GitHub release"
+	@echo ""
+	@echo "Notes:"
+	@echo "  - Local images are tagged as :local and never pushed"
+	@echo "  - Published images are multi-arch and pinned"
+	@echo ""

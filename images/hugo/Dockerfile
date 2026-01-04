@@ -11,7 +11,7 @@ ARG DART_SASS_VERSION=1.97.1
 ARG TARGETARCH
 
 # We only need curl here to fetch pinned release artifacts.
-RUN apk add --no-cache curl gcompat libstdc++ libgcc
+RUN apk add --no-cache go curl gcompat libstdc++ libgcc
 
 # Install Hugo Extended (multi-arch)
 RUN set -euo pipefail; \
