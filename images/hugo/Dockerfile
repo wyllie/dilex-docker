@@ -11,7 +11,7 @@ ARG DART_SASS_VERSION=1.97.1
 ARG TARGETARCH
 
 # We only need curl here to fetch pinned release artifacts.
-RUN apk add --no-cache curl gcompat
+RUN apk add --no-cache curl gcompat libstdc++ libgcc
 
 # Install Hugo Extended (multi-arch)
 RUN set -euo pipefail; \
@@ -36,8 +36,10 @@ RUN set -euo pipefail; \
     curl -fsSL -o /tmp/dart-sass.tar.gz \
       "https://github.com/sass/dart-sass/releases/download/${DART_SASS_VERSION}/dart-sass-${DART_SASS_VERSION}-linux-${SASS_ARCH}.tar.gz"; \
     tar -xzf /tmp/dart-sass.tar.gz -C /tmp; \
-    install -m 0755 /tmp/dart-sass/sass /usr/local/bin/sass; \
-    rm -rf /tmp/dart-sass.tar.gz /tmp/dart-sass
+    rm -rf /opt/dart-sass; \
+    mv /tmp/dart-sass /opt/dart-sass; \
+    ln -sf /opt/dart-sass/sass /usr/local/bin/sass; \
+    rm -rf /tmp/dart-sass.tar.gz
 
 WORKDIR /work
 

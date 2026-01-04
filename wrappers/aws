@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -e
+
+docker run --rm -it \
+  -u "$(id -u):$(id -g)" \
+  -e AWS_PROFILE \
+  -e AWS_DEFAULT_REGION \
+  -e AWS_REGION \
+  -v "$HOME/.aws:/home/aws/.aws:ro" \
+  -v "$PWD:/work" \
+  -w /work \
+  @@HUGO_AWS_IMAGE@@ \
+  aws "$@"
