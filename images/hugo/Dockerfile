@@ -1,23 +1,44 @@
-# Use a pinned Alpine (recommended vs :latest)
-FROM alpine:3.20
+# wyllie/hugo
+# Hugo Extended + Dart Sass (standalone) for building Hugo sites (e.g., GitHub Pages docs).
+# Intentionally avoids installing Node by using the standalone Dart Sass CLI.
 
-# Add edge repos for hugo (community) and dart-sass (testing)
-RUN echo "https://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories && \
-    echo "https://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories && \
-    echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+FROM wyllie/ci-base:alpine3.23.2-1
 
-# Install tooling (hugo from edge/community; dart-sass from edge/testing)
-RUN apk add --no-cache \
-      bash ca-certificates curl dart-sass git python3 py3-pip go \
-      hugo tar wget
+ARG HUGO_VERSION=0.154.2
+ARG DART_SASS_VERSION=1.97.1
 
-# Install the AWS CLI in its own venv
-RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install --no-cache-dir --upgrade awscli
+# Provided by BuildKit when building multi-arch (linux/amd64, linux/arm64)
+ARG TARGETARCH
 
-# Add a few directories to the path
-ENV PATH="/usr/local/go/bin:/opt/venv/bin:/usr/local/bin:$PATH"
+# We only need curl here to fetch pinned release artifacts.
+RUN apk add --no-cache curl
 
-WORKDIR /app
+# Install Hugo Extended (multi-arch)
+RUN set -euo pipefail; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) HUGO_ARCH=amd64 ;; \
+      arm64) HUGO_ARCH=arm64 ;; \
+      *) echo "Unsupported TARGETARCH=${TARGETARCH}" >&2; exit 2 ;; \
+    esac; \
+    curl -fsSL -o /tmp/hugo.tar.gz \
+      "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-${HUGO_ARCH}.tar.gz"; \
+    tar -xzf /tmp/hugo.tar.gz -C /tmp; \
+    install -m 0755 /tmp/hugo /usr/local/bin/hugo; \
+    rm -rf /tmp/hugo.tar.gz /tmp/hugo /tmp/LICENSE /tmp/README.md
+
+# Install Dart Sass (standalone CLI, multi-arch)
+RUN set -euo pipefail; \
+    case "${TARGETARCH:-amd64}" in \
+      amd64) SASS_ARCH=x64 ;; \
+      arm64) SASS_ARCH=arm64 ;; \
+      *) echo "Unsupported TARGETARCH=${TARGETARCH}" >&2; exit 2 ;; \
+    esac; \
+    curl -fsSL -o /tmp/dart-sass.tar.gz \
+      "https://github.com/sass/dart-sass/releases/download/${DART_SASS_VERSION}/dart-sass-${DART_SASS_VERSION}-linux-${SASS_ARCH}.tar.gz"; \
+    tar -xzf /tmp/dart-sass.tar.gz -C /tmp; \
+    install -m 0755 /tmp/dart-sass/sass /usr/local/bin/sass; \
+    rm -rf /tmp/dart-sass.tar.gz /tmp/dart-sass
+
+WORKDIR /work
+
 CMD ["/bin/bash"]

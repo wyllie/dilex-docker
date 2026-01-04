@@ -1,18 +1,17 @@
-# grab the latest official version of alpine
-FROM alpine:latest
+# wyllie/cdk
+# AWS CDK deployment image (Node + AWS CLI v2)
 
-# Install Node.js, npm and bash
-RUN apk update && \
-    apk add --no-cache bash nodejs npm python3 py3-pip git curl
+FROM wyllie/ci-base:alpine3.23.2-1
 
-RUN python3 -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip
+# Install core tooling: Node.js, npm, and AWS CLI v2
+RUN apk add --no-cache \
+      nodejs \
+      npm \
+      aws-cli
 
-RUN /opt/venv/bin/pip install awscli --upgrade
-
+# Install AWS CDK globally
 RUN npm install -g aws-cdk
 
-ENV PATH="/opt/venv/bin:$PATH"
+WORKDIR /work
 
-# Use a bash entrypoint
 CMD ["/bin/bash"]

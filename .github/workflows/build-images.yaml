@@ -1,0 +1,122 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+# Central “tag knobs”
+env:
+  ALPINE_VERSION: "3.23.2"
+  BASE_REV: "1"
+
+  # For tagging clarity (build args are set in Dockerfiles too)
+  HUGO_VERSION: "0.154.2"
+  SASS_VERSION: "1.97.1"
+
+concurrency:
+  group: docker-images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ci-base:
+    name: Build ci-base
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and (optionally) push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./images/ci-base
+          file: ./images/ci-base/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            wyllie/ci-base:alpine${{ env.ALPINE_VERSION }}-${{ env.BASE_REV }}
+            wyllie/ci-base:main
+
+  build-others:
+    name: Build ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    needs: build-ci-base
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: hugo
+            context: ./images/hugo
+            dockerfile: ./images/hugo/Dockerfile
+            tags: |
+              wyllie/hugo:hugo${{ env.HUGO_VERSION }}-sass${{ env.SASS_VERSION }}-alpine${{ env.ALPINE_VERSION }}-${{ env.BASE_REV }}
+              wyllie/hugo:main
+
+          - image: hugo-aws
+            context: ./images/hugo-aws
+            dockerfile: ./images/hugo-aws/Dockerfile
+            tags: |
+              wyllie/hugo-aws:hugo${{ env.HUGO_VERSION }}-sass${{ env.SASS_VERSION }}-awscli2-alpine${{ env.ALPINE_VERSION }}-${{ env.BASE_REV }}
+              wyllie/hugo-aws:main
+
+          - image: cdk
+            context: ./images/cdk
+            dockerfile: ./images/cdk/Dockerfile
+            tags: |
+              wyllie/cdk:awscli2-alpine${{ env.ALPINE_VERSION }}-${{ env.BASE_REV }}
+              wyllie/cdk:main
+
+          - image: latex
+            context: ./images/latex
+            dockerfile: ./images/latex/Dockerfile
+            tags: |
+              wyllie/latex:alpine${{ env.ALPINE_VERSION }}-texlive-${{ env.BASE_REV }}
+              wyllie/latex:main
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and (optionally) push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ matrix.tags }}
