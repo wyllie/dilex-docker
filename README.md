@@ -17,7 +17,23 @@ The goal of this repo is to provide a **single source of truth** for build and d
 
 ## Images published from this repository
 
-All images are published to Docker Hub under the `wyllie/*` namespace.
+All images are published to **multiple container registries**:
+
+### Docker Hub (primary, personal namespace)
+
+    wyllie/<image>
+
+This remains the default and stable namespace, using a personal Docker Hub account (free tier).
+
+### GitHub Container Registry (GHCR)
+
+    ghcr.io/dilexnetworks/<image>
+
+GHCR images are published directly from GitHub Actions using the native `GITHUB_TOKEN`,
+and provide an organization-owned namespace tightly integrated with GitHub.
+
+NOTE: Image tags are kept identical across registries. Additional registries (e.g. AWS ECR)
+may be added in the future without breaking existing tags.
 
 ### `wyllie/ci-base`
 Minimal base image shared by all other images.
