@@ -1,6 +1,34 @@
-# editor crap
-*.swp
-.idea/
-
-# MacOS crap
+# -----------------------------
+# OS / editor noise
+# -----------------------------
 .DS_Store
+Thumbs.db
+
+.idea/
+.vscode/
+*.iml
+
+# -----------------------------
+# Local env / temp files
+# -----------------------------
+.env
+.env.*
+*.log
+tmp/
+temp/
+
+# -----------------------------
+# Docker / build artifacts
+# -----------------------------
+*.tar
+*.tar.gz
+*.tgz
+
+# Buildx cache directories (if used locally)
+.buildx-cache/
+docker-build-cache/
+
+# -----------------------------
+# Makefile artifacts
+# -----------------------------
+*.local
