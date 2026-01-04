@@ -177,7 +177,7 @@ bump-version: version-init
 	else \
 		bump2version --no-commit --no-tag "$(RELEASE)"; \
 	fi
-	@echo "✔ Bumped version to $$(cat \"$(VERSION_FILE)\")"
+	@echo "✔ Bumped version to $$(cat "$(VERSION_FILE)")"
 
 # Commit the version bump.
 commit-release: version-init
@@ -201,8 +201,8 @@ tag-release: version-init
 		echo "DRY_RUN git tag $$TAG"; \
 	else \
 		git tag "$$TAG"; \
-	fi
-	@echo "✔ Tagged $$TAG"
+	fi; \
+	echo "✔ Tagged $$TAG"
 
 # Push commits + tags.
 push-release:
