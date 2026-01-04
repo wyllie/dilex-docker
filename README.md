@@ -231,6 +231,14 @@ make pull-cdk
 
 ---
 
+## Releases
+
+Releases are cut manually using:
+
+    make release RELEASE=patch|minor|major
+
+Publishing a release automatically builds and publishes container images.
+
 ## Design principles
 
 - **Single source of truth** for build toolchains

@@ -167,28 +167,15 @@ version-set:
 	@echo "✔ Set version to $(VERSION)"
 
 # Bump semver in version.txt. Usage: `make bump-version RELEASE=patch|minor|major`
-# - patch: 0.1.0 -> 0.1.1
-# - minor: 0.1.0 -> 0.2.0
-# - major: 0.1.0 -> 1.0.0
+# (Bump semantics are handled by bump2version: patch|minor|major)
 bump-version: version-init
 	@[ -n "$(RELEASE)" ] || { echo "❌ RELEASE is required (patch|minor|major)"; exit 2; }
-	@# Prefer bump2version if configured; fallback to a tiny semver bump (no heredocs; avoids Make tab/space pitfalls).
-	@if command -v bump2version >/dev/null 2>&1 && { [ -f .bumpversion.cfg ] || [ -f setup.cfg ] || [ -f pyproject.toml ]; }; then \
-		if [ "$(DRY_RUN)" = "1" ]; then \
-			echo "DRY_RUN bump2version --no-commit --no-tag $(RELEASE)"; \
-		else \
-			bump2version --no-commit --no-tag "$(RELEASE)"; \
-		fi; \
+	@command -v bump2version >/dev/null 2>&1 || { echo "❌ bump2version is required but not found. Install it (pipx/pip) and try again."; exit 2; }
+	@# Bump version using bump2version, but let this Makefile handle commit/tag.
+	@if [ "$(DRY_RUN)" = "1" ]; then \
+		echo "DRY_RUN bump2version --no-commit --no-tag $(RELEASE)"; \
 	else \
-		if [ "$(DRY_RUN)" = "1" ]; then \
-			echo "DRY_RUN python3 semver bump $(RELEASE) -> $(VERSION_FILE)"; \
-		else \
-			python3 -c 'import os,re,sys; part=os.environ.get("RELEASE"); path=os.environ.get("VERSION_FILE","version.txt"); v=open(path,"r",encoding="utf-8").read().strip();\n\
-assert re.fullmatch(r"\\d+\\.\\d+\\.\\d+", v), f"Invalid version in {path}: {v}";\n\
-major,minor,patch=map(int,v.split("."));\n\
-(major,minor,patch) = (major, minor, patch+1) if part=="patch" else (major, minor+1, 0) if part=="minor" else (major+1,0,0) if part=="major" else (_ for _ in ()).throw(SystemExit("RELEASE must be patch|minor|major"));\n\
-new=f"{major}.{minor}.{patch}"; open(path,"w",encoding="utf-8").write(new+"\\n"); print(new)'; \
-		fi; \
+		bump2version --no-commit --no-tag "$(RELEASE)"; \
 	fi
 	@echo "✔ Bumped version to $$(cat \"$(VERSION_FILE)\")"
 
@@ -198,9 +185,11 @@ commit-release: version-init
 	[ -n "$$V" ] || { echo "❌ $(VERSION_FILE) is empty"; exit 2; }; \
 	if [ "$(DRY_RUN)" = "1" ]; then \
 		echo "DRY_RUN git add $(VERSION_FILE)"; \
+		if [ -f .bumpversion.cfg ]; then echo "DRY_RUN git add .bumpversion.cfg"; fi; \
 		echo "DRY_RUN git commit -m 'chore(release): $(RELEASE_PREFIX)$$V'"; \
 	else \
 		git add "$(VERSION_FILE)"; \
+		if [ -f .bumpversion.cfg ]; then git add .bumpversion.cfg; fi; \
 		git commit -m "chore(release): $(RELEASE_PREFIX)$$V"; \
 	fi
 
