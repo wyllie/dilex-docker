@@ -7,6 +7,12 @@ on:
       - "v*"
   pull_request:
   workflow_dispatch:
+    inputs:
+      build_latex:
+        description: "Build/push the wyllie/latex image"
+        required: false
+        default: false
+        type: boolean
 
 # Central “tag knobs”
 env:
@@ -56,8 +62,8 @@ jobs:
             wyllie/ci-base:alpine${{ env.ALPINE_VERSION }}-${{ env.BASE_REV }}
             wyllie/ci-base:main
 
-  build-others:
-    name: Build ${{ matrix.image }}
+  build-stage1:
+    name: Build stage1 ${{ matrix.image }}
     runs-on: ubuntu-latest
     needs: build-ci-base
     permissions:
@@ -71,17 +77,9 @@ jobs:
             context: ./images/hugo
             dockerfile: ./images/hugo/Dockerfile
 
-          - image: hugo-aws
-            context: ./images/hugo-aws
-            dockerfile: ./images/hugo-aws/Dockerfile
-
           - image: cdk
             context: ./images/cdk
             dockerfile: ./images/cdk/Dockerfile
-
-          - image: latex
-            context: ./images/latex
-            dockerfile: ./images/latex/Dockerfile
 
     steps:
       - name: Checkout
@@ -110,14 +108,8 @@ jobs:
             hugo)
               TAGS="wyllie/hugo:hugo${HUGO_VERSION}-sass${SASS_VERSION}-alpine${ALPINE_VERSION}-${BASE_REV}\nwyllie/hugo:main"
               ;;
-            hugo-aws)
-              TAGS="wyllie/hugo-aws:hugo${HUGO_VERSION}-sass${SASS_VERSION}-awscli2-alpine${ALPINE_VERSION}-${BASE_REV}\nwyllie/hugo-aws:main"
-              ;;
             cdk)
               TAGS="wyllie/cdk:awscli2-alpine${ALPINE_VERSION}-${BASE_REV}\nwyllie/cdk:main"
-              ;;
-            latex)
-              TAGS="wyllie/latex:alpine${ALPINE_VERSION}-texlive-${BASE_REV}\nwyllie/latex:main"
               ;;
             *)
               echo "Unknown matrix.image: ${{ matrix.image }}" >&2
@@ -138,4 +130,94 @@ jobs:
           file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.tags.outputs.tags }}
+
+  build-stage2:
+    name: Build stage2 hugo-aws
+    runs-on: ubuntu-latest
+    needs: build-stage1
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Compute tags
+        id: tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo 'tags<<EOF'
+            echo "wyllie/hugo-aws:hugo${HUGO_VERSION}-sass${SASS_VERSION}-awscli2-alpine${ALPINE_VERSION}-${BASE_REV}"
+            echo "wyllie/hugo-aws:main"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and (optionally) push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./images/hugo-aws
+          file: ./images/hugo-aws/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.tags.outputs.tags }}
+
+  build-latex:
+    name: Build latex (manual)
+    runs-on: ubuntu-latest
+    needs: build-ci-base
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_latex }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Compute tags
+        id: tags
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo 'tags<<EOF'
+            echo "wyllie/latex:alpine${ALPINE_VERSION}-texlive-${BASE_REV}"
+            echo "wyllie/latex:main"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./images/latex
+          file: ./images/latex/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
           tags: ${{ steps.tags.outputs.tags }}
