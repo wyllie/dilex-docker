@@ -1,6 +1,6 @@
-# dilex-containers
+# core-containers
 
-![GHCR](https://img.shields.io/github/v/release/DilexNetworks/dilex-containers?label=GHCR&logo=github)
+![GHCR](https://img.shields.io/github/v/release/DilexNetworks/core-containers?label=GHCR&logo=github)
 ![GHCR Hugo](https://img.shields.io/badge/ghcr-hugo-blue?logo=github)
 ![Docker Hub](https://img.shields.io/docker/v/wyllie/hugo?label=docker%20hub&logo=docker)
 

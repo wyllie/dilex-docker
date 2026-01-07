@@ -242,7 +242,7 @@ release: bump-version commit-release tag-release push-release gh-release
 .PHONY: help
 help:
 	@echo ""
-	@echo "dilex-containers Makefile"
+	@echo "DilexNetworks core-containers Makefile"
 	@echo ""
 	@echo "Wrappers:"
 	@echo "  install           Install docker-backed CLI wrappers into ~/bin"
