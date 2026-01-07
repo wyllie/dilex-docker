@@ -1,7 +1,6 @@
 # core-containers
 
 ![GHCR](https://img.shields.io/github/v/release/DilexNetworks/core-containers?label=GHCR&logo=github)
-![GHCR Hugo](https://img.shields.io/badge/ghcr-hugo-blue?logo=github)
 ![Docker Hub](https://img.shields.io/docker/v/wyllie/hugo?label=docker%20hub&logo=docker)
 
 
@@ -9,6 +8,7 @@ This repository contains the **authoritative container images and tooling** used
 
 - Hugo site builds (docs + websites)
 - Deploying static sites to AWS (S3 / CloudFront)
+- AWS CLI–based operational tooling
 - AWS CDK infrastructure deployments
 - (Optionally) LaTeX document builds
 
@@ -91,16 +91,19 @@ Notes:
 
 ---
 
-### `wyllie/hugo-aws`
-Extends `wyllie/hugo` with AWS deployment tooling.
+### `wyllie/aws-cli`
+Pinned AWS CLI tooling image.
 
 Includes:
-- Everything from `wyllie/hugo`
-- AWS CLI v2 (from Alpine packages)
+- AWS CLI v2 (pinned)
+- Inherits base tooling from `wyllie/ci-base`
 
 Used for:
-- `aws s3 sync`
-- CloudFront invalidations
+- Standalone AWS CLI usage (local + CI)
+- Deploying Hugo-built sites to S3 / CloudFront
+- Shared AWS tooling layer for other images (e.g. `cdk`)
+
+This image is the **single source of truth** for the AWS CLI version across all containers.
 
 ---
 
@@ -109,8 +112,8 @@ AWS CDK deployment image.
 
 Includes:
 - Node.js + npm
-- AWS CLI v2
-- Inherits base tooling from `wyllie/ci-base`
+- AWS CDK (pinned)
+- Inherits AWS CLI from `wyllie/aws-cli`
 
 Used for:
 - `cdk synth`
@@ -133,7 +136,7 @@ This image is **not** built automatically due to long build times. It can be bui
 
 This repository includes a GitHub Actions workflow that:
 
-- Builds all primary images (`ci-base`, `hugo`, `cdk`, then `hugo-aws`)
+- Builds all primary images (`ci-base`, `hugo`, `aws-cli`, then `cdk`)
 - Publishes multi-arch images (`amd64`, `arm64`) to Docker Hub
 - Uses strict build ordering to respect image dependencies
 
@@ -156,7 +159,7 @@ A `Makefile` is provided for fast local testing of Docker images.
 ```bash
 make build-ci-base
 make build-hugo
-make build-hugo-aws
+make build-aws
 make build-cdk
 make build-all
 ```
@@ -167,7 +170,7 @@ Images are tagged locally as `:local` and never pushed.
 
 ```bash
 make buildx-hugo
-make buildx-hugo-aws
+make buildx-aws
 ```
 
 ---
@@ -178,7 +181,7 @@ Quick sanity checks for locally built images:
 
 ```bash
 make smoke-hugo
-make smoke-hugo-aws
+make smoke-aws
 make smoke-cdk
 ```
 
@@ -225,7 +228,7 @@ Individual pulls are also available:
 
 ```bash
 make pull-hugo
-make pull-hugo-aws
+make pull-aws
 make pull-cdk
 ```
 
