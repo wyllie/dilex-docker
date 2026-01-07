@@ -26,5 +26,5 @@ docker run --rm -it \
   -v "${DXAWS_DIR}:${CONTAINER_DXAWS_DIR}:ro" \
   -v "$PWD:/work" \
   -w /work \
-  @@HUGO_AWS_IMAGE@@ \
+  @@AWS_IMAGE@@ \
   aws "$@"

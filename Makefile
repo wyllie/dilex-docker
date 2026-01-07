@@ -15,15 +15,15 @@ DRY_RUN ?= 0
 
 # Image tags (single source of truth)
 HUGO_IMAGE := wyllie/hugo:hugo0.154.2-sass1.97.1-alpine3.23.2-1
-HUGO_AWS_IMAGE := wyllie/hugo-aws:hugo0.154.2-sass1.97.1-awscli2-alpine3.23.2-1
-CDK_IMAGE := wyllie/cdk:awscli2-alpine3.23.2-1
+AWS_IMAGE := wyllie/aws-cli:awscli2.32.7-alpine3.23.2-1
+CDK_IMAGE := wyllie/cdk:awscli2.32.7-alpine3.23.2-1
 CI_BASE_IMAGE := wyllie/ci-base:alpine3.23.2-1
 LATEX_IMAGE := wyllie/latex:alpine3.23.2-texlive-1
 
 # Local test tags (for fast iteration without waiting on GitHub Actions)
 CI_BASE_LOCAL := wyllie/ci-base:local
 HUGO_LOCAL := wyllie/hugo:local
-HUGO_AWS_LOCAL := wyllie/hugo-aws:local
+AWS_LOCAL := wyllie/aws-cli:local
 CDK_LOCAL := wyllie/cdk:local
 LATEX_LOCAL := wyllie/latex:local
 
@@ -31,10 +31,10 @@ LATEX_LOCAL := wyllie/latex:local
 PLATFORMS ?= linux/amd64,linux/arm64
 
 .PHONY: install uninstall check-bin \
-	build-ci-base build-hugo build-hugo-aws build-cdk build-latex \
-	build-all buildx-ci-base buildx-hugo buildx-hugo-aws buildx-cdk buildx-latex \
-	smoke-hugo smoke-hugo-aws smoke-cdk \
-	pull-published pull-ci-base pull-hugo pull-hugo-aws pull-cdk pull-latex images-info \
+	build-ci-base build-hugo build-aws build-cdk build-latex \
+	build-all buildx-ci-base buildx-hugo buildx-aws buildx-cdk buildx-latex \
+	smoke-hugo smoke-aws smoke-cdk \
+	pull-published pull-ci-base pull-hugo pull-aws pull-cdk pull-latex images-info \
 	version-init version-show version-set bump-version release commit-release tag-release push-release gh-release help
 
 check-bin:
@@ -43,7 +43,7 @@ check-bin:
 install: check-bin
 	@echo "Installing docker-backed CLI wrappers into $(BIN_DIR)"
 	@sed "s|@@HUGO_IMAGE@@|$(HUGO_IMAGE)|g" $(WRAPPER_DIR)/hugo > $(BIN_DIR)/hugo
-	@sed "s|@@HUGO_AWS_IMAGE@@|$(HUGO_AWS_IMAGE)|g" $(WRAPPER_DIR)/aws > $(BIN_DIR)/aws
+	@sed "s|@@AWS_IMAGE@@|$(AWS_IMAGE)|g" $(WRAPPER_DIR)/aws > $(BIN_DIR)/aws
 	@sed "s|@@CDK_IMAGE@@|$(CDK_IMAGE)|g" $(WRAPPER_DIR)/cdk > $(BIN_DIR)/cdk
 	@chmod +x $(BIN_DIR)/hugo $(BIN_DIR)/aws $(BIN_DIR)/cdk
 	@echo "✔ Installed: hugo, aws, cdk"
@@ -64,16 +64,16 @@ build-ci-base:
 build-hugo: build-ci-base
 	docker build -t $(HUGO_LOCAL) images/hugo
 
-build-hugo-aws: build-hugo
-	docker build -t $(HUGO_AWS_LOCAL) images/hugo-aws
+build-aws: build-ci-base
+	docker build -t $(AWS_LOCAL) images/aws-cli
 
-build-cdk: build-ci-base
+build-cdk: build-aws
 	docker build -t $(CDK_LOCAL) images/cdk
 
 build-latex: build-ci-base
 	docker build -t $(LATEX_LOCAL) images/latex
 
-build-all: build-ci-base build-hugo build-hugo-aws build-cdk
+build-all: build-ci-base build-hugo build-aws build-cdk
 
 
 # -----------------------------
@@ -89,10 +89,10 @@ buildx-ci-base:
 buildx-hugo: buildx-ci-base
 	docker buildx build --platform $(PLATFORMS) -t $(HUGO_LOCAL) --load images/hugo
 
-buildx-hugo-aws: buildx-hugo
-	docker buildx build --platform $(PLATFORMS) -t $(HUGO_AWS_LOCAL) --load images/hugo-aws
+buildx-aws: buildx-ci-base
+	docker buildx build --platform $(PLATFORMS) -t $(AWS_LOCAL) --load images/aws-cli
 
-buildx-cdk: buildx-ci-base
+buildx-cdk: buildx-aws
 	docker buildx build --platform $(PLATFORMS) -t $(CDK_LOCAL) --load images/cdk
 
 buildx-latex: buildx-ci-base
@@ -107,9 +107,8 @@ smoke-hugo: build-hugo
 	docker run --rm $(HUGO_LOCAL) hugo version
 	docker run --rm $(HUGO_LOCAL) sass --version
 
-smoke-hugo-aws: build-hugo-aws
-	docker run --rm $(HUGO_AWS_LOCAL) hugo version
-	docker run --rm $(HUGO_AWS_LOCAL) aws --version
+smoke-aws: build-aws
+	docker run --rm $(AWS_LOCAL) aws --version
 
 smoke-cdk: build-cdk
 	docker run --rm $(CDK_LOCAL) cdk version
@@ -124,7 +123,7 @@ images-info:
 	@echo "Published images (wrappers use these):"
 	@echo "  ci-base   : $(CI_BASE_IMAGE)"
 	@echo "  hugo      : $(HUGO_IMAGE)"
-	@echo "  hugo-aws  : $(HUGO_AWS_IMAGE)"
+	@echo "  aws-cli   : $(AWS_IMAGE)"
 	@echo "  cdk       : $(CDK_IMAGE)"
 
 pull-ci-base:
@@ -133,8 +132,8 @@ pull-ci-base:
 pull-hugo:
 	docker pull $(HUGO_IMAGE)
 
-pull-hugo-aws:
-	docker pull $(HUGO_AWS_IMAGE)
+pull-aws:
+	docker pull $(AWS_IMAGE)
 
 pull-cdk:
 	docker pull $(CDK_IMAGE)
@@ -142,7 +141,7 @@ pull-cdk:
 pull-latex:
 	docker pull $(LATEX_IMAGE)
 
-pull-published: pull-ci-base pull-hugo pull-hugo-aws pull-cdk
+pull-published: pull-ci-base pull-hugo pull-aws pull-cdk pull-latex
 	@echo "✔ Pulled published images"
 
 
@@ -251,28 +250,28 @@ help:
 	@echo "Local builds (fast, single-arch):"
 	@echo "  build-ci-base     Build ci-base locally"
 	@echo "  build-hugo        Build hugo locally"
-	@echo "  build-hugo-aws    Build hugo-aws locally"
+	@echo "  build-aws         Build aws-cli locally"
 	@echo "  build-cdk         Build cdk locally"
 	@echo "  build-latex       Build latex locally"
-	@echo "  build-all         Build ci-base, hugo, hugo-aws, cdk"
+	@echo "  build-all         Build ci-base, hugo, aws-cli, cdk"
 	@echo ""
 	@echo "Local multi-arch builds (buildx, closer to CI):"
 	@echo "  buildx-ci-base"
 	@echo "  buildx-hugo"
-	@echo "  buildx-hugo-aws"
+	@echo "  buildx-aws"
 	@echo "  buildx-cdk"
 	@echo "  buildx-latex"
 	@echo ""
 	@echo "Smoke tests:"
 	@echo "  smoke-hugo        Run hugo + sass sanity checks"
-	@echo "  smoke-hugo-aws    Run hugo + aws sanity checks"
+	@echo "  smoke-aws         Run aws-cli sanity checks"
 	@echo "  smoke-cdk         Run cdk + aws sanity checks"
 	@echo ""
 	@echo "Published images:"
 	@echo "  images-info       Show pinned published image tags"
 	@echo "  pull-published    Pull all published images"
 	@echo "  pull-hugo"
-	@echo "  pull-hugo-aws"
+	@echo "  pull-aws"
 	@echo "  pull-cdk"
 	@echo "  pull-latex"
 	@echo ""
