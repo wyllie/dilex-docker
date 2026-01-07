@@ -7,6 +7,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.iml
+*.swp
 
 # -----------------------------
 # Local env / temp files
