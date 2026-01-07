@@ -1,8 +1,6 @@
-
-
 # Contributing
 
-Thanks for your interest in contributing to **dilex-docker**.
+Thanks for your interest in contributing to **core-containers**.
 
 This repository provides the **foundational build toolchains** used across Dilex projects, so changes here should be made deliberately and with care.
 
@@ -28,7 +26,7 @@ If a change violates one of these principles, it probably does not belong here.
 images/
   ci-base/
   hugo/
-  hugo-aws/
+  aws-cli/
   cdk/
   latex/
 wrappers/
@@ -90,8 +88,8 @@ make smoke-hugo
 For derived images:
 
 ```bash
-make build-hugo-aws
-make smoke-hugo-aws
+make build-aws
+make smoke-aws
 ```
 
 Local images are tagged as `:local` and are never pushed.
@@ -106,7 +104,7 @@ GitHub Actions will:
 - Build and publish images on merges to `main`
 - Enforce image build ordering
 
-Long-running or experimental images (e.g. LaTeX) should **not** be added to the default pipeline.
+Long-running or experimental images (e.g. LaTeX) are typically built separately and should not slow down the default pipeline.
 
 ---
 

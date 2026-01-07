@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the architectural principles and image layering strategy used in the **dilex-docker** repository.
+This document describes the architectural principles and image layering strategy used in the **core-containers** repository.
 
 The intent is to make the system:
 
@@ -28,10 +28,9 @@ The images in this repository form a deliberate dependency tree:
 ```
 ci-base
 ├── hugo
-│   └── hugo-aws
-└── cdk
-
-latex (standalone, manual build)
+├── aws-cli
+│   └── cdk
+└── latex (standalone, manual build)
 ```
 
 Each image has a *single responsibility* and only adds what it strictly needs.
@@ -106,27 +105,29 @@ The full Dart Sass directory is preserved and symlinked to ensure the bundled ru
 
 ---
 
-## Hugo + AWS image: `hugo-aws`
+## AWS CLI image: `aws-cli`
 
-`hugo-aws` extends `hugo` with AWS deployment tooling.
+The `aws-cli` image provides a pinned AWS CLI toolchain for both local usage and CI.
 
 ### Why this is a separate image
 
-Many Hugo workflows do *not* require AWS access. Keeping AWS tooling separate:
+Many build workflows (e.g. Hugo documentation builds) do not require AWS access. Keeping AWS tooling isolated:
 
 - Reduces attack surface
-- Keeps documentation builds lightweight
-- Avoids leaking AWS credentials into unnecessary environments
+- Keeps build images lightweight
+- Avoids pulling AWS tooling into environments that don’t need it
 
 ### Additions
 
-- AWS CLI v2 (from Alpine packages)
+- AWS CLI v2 (pinned via Alpine package version)
 
 This image is used for:
 
 - `aws s3 sync`
 - CloudFront invalidations
 - Deployment automation
+
+It is also used as a shared base for other images that require the AWS CLI (e.g. `cdk`).
 
 ---
 
@@ -138,11 +139,11 @@ The `cdk` image is used for AWS infrastructure deployments.
 
 - Node.js
 - npm
-- AWS CLI v2
+- AWS CDK
 
 ### Inheritance
 
-- Inherits from `ci-base`
+- Inherits AWS CLI from `aws-cli`
 - Does *not* inherit from `hugo`
 
 This avoids unnecessary coupling between site-building tools and infrastructure tooling.
@@ -161,8 +162,7 @@ The LaTeX image is a standalone build environment.
 
 For these reasons:
 
-- It is **excluded from automatic CI builds**
-- It is built **manually via workflow dispatch** when needed
+- It is typically built separately (e.g. via workflow dispatch) when needed
 
 This keeps the primary pipeline fast and reliable.
 
@@ -173,12 +173,12 @@ This keeps the primary pipeline fast and reliable.
 Image dependencies are respected explicitly in CI:
 
 1. `ci-base`
-2. `hugo` and `cdk`
-3. `hugo-aws` (depends on `hugo`)
+2. `hugo` and `aws-cli`
+3. `cdk` (depends on `aws-cli`)
 
 This prevents race conditions where a derived image is built before its base image is published.
 
-LaTeX is intentionally excluded from this flow.
+LaTeX may be built separately depending on needs.
 
 ---
 
